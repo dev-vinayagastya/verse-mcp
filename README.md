@@ -132,4 +132,4 @@ npm run typecheck
 npm test                  # scripted Verse origin, both transports, driven by the official MCP client
 ```
 
-Issues and source: <https://github.com/ctruhtech/verse-mcp>. Licence: MIT, see [LICENSE](LICENSE).
+Issues and source: <https://github.com/dev-vinayagastya/verse-mcp>. Licence: MIT, see [LICENSE](LICENSE).

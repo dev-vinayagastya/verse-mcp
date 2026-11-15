@@ -5,10 +5,10 @@
   "homepage": "https://verse.ctruh.com/docs/#/mcp",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/ctruhtech/verse-mcp.git"
+    "url": "git+https://github.com/dev-vinayagastya/verse-mcp.git"
   },
   "bugs": {
-    "url": "https://github.com/ctruhtech/verse-mcp/issues"
+    "url": "https://github.com/dev-vinayagastya/verse-mcp/issues"
   },
   "author": "Ctruh <hello@ctruh.com>",
   "license": "MIT",
@@ -35,7 +35,7 @@
   "engines": {
     "node": ">=20"
   },
-  "mcpName": "io.github.ctruhtech/verse-mcp",
+  "mcpName": "io.github.dev-vinayagastya/verse-mcp",
   "scripts": {
     "build": "tsc -p tsconfig.json",
     "typecheck": "tsc -p tsconfig.json --noEmit",
