@@ -1,0 +1,67 @@
+{
+  "name": "@ctruhtech/verse-mcp",
+  "version": "0.1.0",
+  "description": "MCP server for Verse: let Claude, ChatGPT, Cursor and other AI agents turn 3D files into shareable, embeddable Verse links. stdio and Streamable HTTP.",
+  "homepage": "https://verse.ctruh.com/docs/#/mcp",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/ctruhtech/verse-mcp.git"
+  },
+  "bugs": {
+    "url": "https://github.com/ctruhtech/verse-mcp/issues"
+  },
+  "author": "Ctruh <hello@ctruh.com>",
+  "license": "MIT",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "bin": {
+    "verse-mcp": "./dist/cli.js"
+  },
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    },
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "CHANGELOG.md",
+    "LICENSE",
+    "server.json"
+  ],
+  "engines": {
+    "node": ">=20"
+  },
+  "mcpName": "io.github.ctruhtech/verse-mcp",
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "npm run build && node --test test/mock.test.mjs",
+    "prepublishOnly": "npm run typecheck && npm test"
+  },
+  "dependencies": {
+    "@ctruhtech/verse-sdk": "^4.0.0",
+    "@modelcontextprotocol/sdk": "1.32.2",
+    "zod": "3.25.76"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.0",
+    "typescript": "^5.6.3"
+  },
+  "keywords": [
+    "mcp",
+    "model-context-protocol",
+    "3d",
+    "gltf",
+    "glb",
+    "verse",
+    "ctruh",
+    "ai-agents"
+  ],
+  "publishConfig": {
+    "access": "public"
+  }
+}

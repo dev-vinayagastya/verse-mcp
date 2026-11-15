@@ -1,0 +1,19 @@
+{
+  "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
+  "name": "io.github.ctruhtech/verse-mcp",
+  "title": "Verse",
+  "description": "Turn 3D files into shareable, embeddable Verse links from any AI assistant.",
+  "version": "0.1.0",
+  "repository": { "url": "https://github.com/ctruhtech/verse-mcp", "source": "github" },
+  "packages": [
+    {
+      "registryType": "npm",
+      "identifier": "@ctruhtech/verse-mcp",
+      "version": "0.1.0",
+      "transport": { "type": "stdio" },
+      "environmentVariables": [
+        { "name": "VERSE_API_KEY", "description": "Your Verse API key (Account page, API keys card) or account token. Sent as Authorization: Bearer.", "isRequired": true, "isSecret": true }
+      ]
+    }
+  ]
+}
