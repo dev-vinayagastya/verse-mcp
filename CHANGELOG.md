@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.1.1
+
+- Hosted (Streamable HTTP) servers hand the agent links on their public origin (`publicBaseUrl`, derived from `X-Forwarded-Proto` / `X-Forwarded-Host` by default), never the API loopback.
+- The hosted server's instructions no longer mention local file paths.
+- Messages start with a capital and read as one sentence; a vowel kind gets "an"; upload progress never steps back.
+
 ## 0.1.0
 
 First release.

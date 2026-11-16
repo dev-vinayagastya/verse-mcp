@@ -1,6 +1,6 @@
 {
   "name": "@ctruhtech/verse-mcp",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "MCP server for Verse: let Claude, ChatGPT, Cursor and other AI agents turn 3D files into shareable, embeddable Verse links. stdio and Streamable HTTP.",
   "homepage": "https://verse.ctruh.com/docs/#/mcp",
   "repository": {

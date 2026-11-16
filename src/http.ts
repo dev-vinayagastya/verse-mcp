@@ -11,6 +11,22 @@ export interface HttpHandlerOptions {
   pollIntervalMs?: number;
   /** Called once per JSON-RPC `tools/call` with the tool name (a short label), for adoption counters. Never receives arguments. */
   onToolCall?: (tool: string) => void;
+  /**
+   * The origin written into links handed to the agent. A string, or a
+   * function of the request (default: the request's own public origin from
+   * X-Forwarded-Proto / X-Forwarded-Host / Host, so a server reached through
+   * an edge still writes links on its public address).
+   */
+  publicBaseUrl?: string | ((req: IncomingMessage) => string | undefined);
+}
+
+/** The public origin a request arrived on, as the edge reports it. */
+export function requestOrigin(req: IncomingMessage): string | undefined {
+  const first = (v: unknown) => String(v ?? "").split(",")[0].trim();
+  const host = first(req.headers["x-forwarded-host"]) || first(req.headers["host"]);
+  if (!host) return undefined;
+  const proto = first(req.headers["x-forwarded-proto"]) || "http";
+  return `${proto}://${host}`;
 }
 
 const send = (res: ServerResponse, status: number, body: unknown, headers: Record<string, string> = {}) => {
@@ -64,7 +80,8 @@ export function createHttpHandler(o: HttpHandlerOptions) {
         }
       }
     }
-    const server = createVerseServer({ baseUrl: o.baseUrl, credentials: creds, allowLocalFiles: false, fetch: o.fetch, pollIntervalMs: o.pollIntervalMs });
+    const publicBaseUrl = (typeof o.publicBaseUrl === "function" ? o.publicBaseUrl(req) : o.publicBaseUrl) || requestOrigin(req) || o.baseUrl;
+    const server = createVerseServer({ baseUrl: o.baseUrl, credentials: creds, allowLocalFiles: false, fetch: o.fetch, pollIntervalMs: o.pollIntervalMs, publicBaseUrl });
     const transport = new StreamableHTTPServerTransport({ sessionIdGenerator: undefined, enableJsonResponse: false });
     res.on("close", () => {
       void transport.close();

@@ -17,14 +17,15 @@ export class ToolError extends Error {}
 
 const sentence = (s: string) => {
   const t = s.replace(/\s+/g, " ").trim();
-  return /[.!?]$/.test(t) ? t : `${t}.`;
+  const cap = t.charAt(0).toUpperCase() + t.slice(1);
+  return /[.!?]$/.test(cap) ? cap : `${cap}.`;
 };
 
 /** One plain sentence for any failure; never includes credentials. */
 export function plainError(e: unknown, hasAccount: boolean): string {
   if (e instanceof ToolError) return sentence(e.message);
   if (e instanceof VerseError) {
-    if (e.status === 401 && !hasAccount) return "Uploading needs a free Verse account. Sign up free at verse.ctruh.com/signin, create an API key on your Account page (API keys), set it as VERSE_API_KEY and try again.";
+    if (e.status === 401 && !hasAccount) return "Uploading needs a free Verse account: sign up at verse.ctruh.com/signin, create an API key on your Account page and set it as VERSE_API_KEY.";
     if (e.status === 401) return "The server rejected the Verse credential; check VERSE_API_KEY.";
     if (e.status === 404 && e.code !== "unknown_job" && !hasAccount) return "Not found, and no account token is set; owner-only actions need VERSE_API_KEY set to your account token.";
     if (e.code === "unknown_job") return "That job is unknown or its record expired after 2 hours; use list_scenes to find the scene.";

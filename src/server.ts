@@ -17,11 +17,19 @@ export interface ServerOptions {
   fetch?: typeof fetch;
   /** Poll interval override (tests). */
   pollIntervalMs?: number;
+  /**
+   * The origin links are written with, when it differs from `baseUrl`: a
+   * hosted server talks to its own API over loopback but must hand the
+   * agent links on its public address. Default `baseUrl`.
+   */
+  publicBaseUrl?: string;
 }
 
-const INSTRUCTIONS =
+const instructionsFor = (localFiles: boolean) =>
   "Verse turns 3D files (GLB, glTF, FBX, OBJ, IFC, USD/USDZ, PLY, SPLAT, SPZ-class captures, point clouds) into a shareable link that opens in any browser, with no app and no plugin. " +
-  "Use upload_scene with a local file path or a public URL, then share the returned link or call get_embed_code for an iframe. " +
+  (localFiles
+    ? "Use upload_scene with a local file path or a public URL, then share the returned link or call get_embed_code for an iframe. "
+    : "Use upload_scene with a public http(s) URL (this hosted server cannot read local files), then share the returned link or call get_embed_code for an iframe. ") +
   "Owner actions (list_scenes, visibility, private share links, camera paths) need the user's Verse account token in VERSE_API_KEY. " +
   "Builds can take a minute or more for large files; if upload_scene returns before the build is done, poll get_scene_status.";
 
@@ -31,16 +39,28 @@ const KINDS = ["splat", "cloud", "ifc", "usd", "fbx", "obj"] as const;
 
 type ToolResult = { content: { type: "text"; text: string }[]; structuredContent?: Record<string, unknown>; isError?: boolean };
 
-const ok = (text: string, data?: Record<string, unknown>): ToolResult => ({ content: [{ type: "text", text }], ...(data ? { structuredContent: data } : {}) });
+const okRaw = (text: string, data?: Record<string, unknown>): ToolResult => ({ content: [{ type: "text", text }], ...(data ? { structuredContent: data } : {}) });
 
 export function createVerseServer(opts: ServerOptions): McpServer {
   const client: VerseClient = makeClient(opts.baseUrl, opts.credentials, opts.fetch);
   if (opts.pollIntervalMs) (client as unknown as { pollIntervalMs: number }).pollIntervalMs = opts.pollIntervalMs;
   const hasAccount = !!opts.credentials.token;
-  const server = new McpServer({ name: "verse", version: VERSION }, { instructions: INSTRUCTIONS });
+  const server = new McpServer({ name: "verse", version: VERSION }, { instructions: instructionsFor(opts.allowLocalFiles) });
+  const apiBase = opts.baseUrl.replace(/\/+$/, "");
+  const linkBase = (opts.publicBaseUrl || apiBase).replace(/\/+$/, "");
+  /** Rewrite the API origin to the public one in anything handed to the agent. */
+  const pub = <T>(v: T): T => {
+    if (linkBase === apiBase || v == null) return v;
+    if (typeof v === "string") return v.split(apiBase).join(linkBase) as T;
+    if (Array.isArray(v)) return v.map(pub) as T;
+    if (typeof v === "object") return Object.fromEntries(Object.entries(v as Record<string, unknown>).map(([k, x]) => [k, pub(x)])) as T;
+    return v;
+  };
+
+  const ok = (text: string, data?: Record<string, unknown>): ToolResult => okRaw(pub(text), data ? pub(data) : undefined);
 
   const needAccount = (what: string) => {
-    if (!hasAccount) throw new ToolError(`${what} needs a Verse key; set VERSE_API_KEY to an API key from your Account page (${opts.baseUrl}/account, "API keys") or your account token.`);
+    if (!hasAccount) throw new ToolError(`${what} needs a Verse key; set VERSE_API_KEY to an API key from your Account page (${linkBase}/account, "API keys") or your account token.`);
   };
 
   /** Wrap a handler: any failure becomes one plain sentence with isError. */
@@ -77,7 +97,7 @@ export function createVerseServer(opts: ServerOptions): McpServer {
     let last = -1;
     return async (progress: number, total: number, message: string) => {
       if (token === undefined || token === null) return;
-      if (progress === last) return;
+      if (progress <= last) return; // never report a step backwards
       last = progress;
       try {
         await extra.sendNotification({ method: "notifications/progress", params: { progressToken: token, progress, total, message } });
@@ -416,7 +436,8 @@ export function createVerseServer(opts: ServerOptions): McpServer {
       const r = await client.request<{ id: string; name: string; mode: string; kind: string; keys: unknown[] }>(`/v1/scenes/${encodeURIComponent(id)}/paths/auto`, { method: "POST", retries: 0 });
       const base = linkOf(await resolveScene(id));
       const tourLink = `${base}${base.includes("?") ? "&" : "?"}autoplay=path`;
-      return ok(`Planned a ${r.kind} tour "${r.name}" (${r.keys.length} keys). Tour link: ${tourLink}`, { scene: id, pathId: r.id, kind: r.kind, tourLink });
+      const article = /^[aeiou]/i.test(String(r.kind)) ? "an" : "a";
+      return ok(`Planned ${article} ${r.kind} tour "${r.name}" (${r.keys.length} keys). Tour link: ${tourLink}`, { scene: id, pathId: r.id, kind: r.kind, tourLink });
     }),
   );
 

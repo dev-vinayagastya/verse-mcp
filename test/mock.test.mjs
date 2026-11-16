@@ -177,6 +177,26 @@ test("Streamable HTTP: same tools, caller's own key, no local files", async () =
   assert.ok(!url.isError, text(url));
 });
 
+test("Streamable HTTP: links carry the public origin the request arrived on, never the API's loopback", async () => {
+  const port = globalThis.__port;
+  const c = new Client({ name: "t", version: "0" });
+  await c.connect(new StreamableHTTPClientTransport(new URL(`http://127.0.0.1:${port}/mcp`), {
+    requestInit: { headers: { Authorization: `Bearer ${mock.TOKEN}`, "X-Forwarded-Proto": "https", "X-Forwarded-Host": "verse.example.com" } },
+  }));
+  try {
+    const ls = await c.callTool({ name: "list_scenes", arguments: {} });
+    const body = JSON.stringify(ls);
+    assert.ok(body.includes("https://verse.example.com/"), "links use the forwarded origin");
+    assert.ok(!body.includes(mock.url), "the API origin never leaks");
+    const emb = await c.callTool({ name: "get_embed_code", arguments: { scene: ls.structuredContent.scenes[0].id } });
+    const eb = JSON.stringify(emb);
+    assert.ok(eb.includes("https://verse.example.com/embed"), "embed code uses the public origin");
+    assert.ok(!eb.includes(mock.url));
+  } finally {
+    await c.close();
+  }
+});
+
 test("Streamable HTTP: no key -> 401 with WWW-Authenticate; GET -> 405", async () => {
   const base = `http://127.0.0.1:${globalThis.__port}/mcp`;
   const r = await fetch(base, { method: "POST", headers: { "Content-Type": "application/json", Accept: "application/json, text/event-stream" }, body: "{}" });

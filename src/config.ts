@@ -1,6 +1,6 @@
 import { VerseClient } from "@ctruhtech/verse-sdk";
 
-export const VERSION = "0.1.0";
+export const VERSION = "0.1.1";
 export const DEFAULT_BASE_URL = "https://verse.ctruh.com";
 
 export interface Credentials {
