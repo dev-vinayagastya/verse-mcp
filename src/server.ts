@@ -26,10 +26,11 @@ export interface ServerOptions {
 }
 
 const instructionsFor = (localFiles: boolean) =>
-  "Verse turns 3D files (GLB, glTF, FBX, OBJ, IFC, USD/USDZ, PLY, SPLAT, SPZ-class captures, point clouds) into a shareable link that opens in any browser, with no app and no plugin. " +
+  "Verse Engine publishes any 3D scene, walkthrough or model (a file or public URL: GLB, glTF, FBX, OBJ, IFC, USD/USDZ, PLY, SPLAT, SPZ-class captures, point clouds), from a single product to a whole city, as a shareable link that opens in any browser, with no app and no plugin. " +
   (localFiles
     ? "Use upload_scene with a local file path or a public URL, then share the returned link or call get_embed_code for an iframe. "
-    : "Use upload_scene with a public http(s) URL (this hosted server cannot read local files), then share the returned link or call get_embed_code for an iframe. ") +
+    : "Use upload_scene with a public http(s) URL (this hosted server cannot read local files), then share the returned link or call get_embed_code for an iframe. " +
+      "When the user has a 3D file on their device or attached in the chat but no public URL, call create_upload_link, give them the link, and once they say it is uploaded poll get_upload_link_status. ") +
   "Owner actions (list_scenes, visibility, private share links, camera paths) need the user's Verse account token in VERSE_API_KEY. " +
   "Builds can take a minute or more for large files; if upload_scene returns before the build is done, poll get_scene_status.";
 
@@ -113,13 +114,14 @@ export function createVerseServer(opts: ServerOptions): McpServer {
   server.registerTool(
     "upload_scene",
     {
-      title: "Upload a 3D file and get a Verse link",
+      title: "Publish a 3D scene and get a Verse link",
       description:
-        "Upload a 3D file and turn it into a shareable Verse link that opens in any browser. `source` is a local file path (stdio only) or a public http(s) URL the Verse server will fetch itself " +
+        "Publish a 3D scene, walkthrough or model (a file or public URL) as a shareable Verse link that opens in any browser. `source` is a local file path (stdio only) or a public http(s) URL the Verse server will fetch itself " +
         "(Dropbox needs dl=1, Google Drive needs 'anyone with the link', S3/R2/GCS need a presigned URL). Accepts GLB, glTF, FBX, OBJ, IFC, USD/USDZ, PLY, SPLAT and point clouds (LAS/LAZ/E57). " +
         "Large local files upload in resumable parts and survive dropped connections; progress is reported as notifications. " +
         "By default the call waits for the build to finish and returns the link; if the build outlasts `wait_seconds` it returns the job id so you can poll get_scene_status. " +
-        "Result: `link` (open in a browser), `scene` (id), `status`.",
+        "Result: `link` (open in a browser), `scene` (id), `status`. " +
+        "If the user has the file on their device or attached in the chat but no public URL (and you cannot read their disk), use create_upload_link instead.",
       inputSchema: {
         source: z.string().min(1).max(4096).describe("Local file path (e.g. ~/Models/villa.glb) or a public http(s) URL to a 3D file."),
         name: z.string().regex(/^[a-z0-9_-]{1,48}$/).optional().describe("Optional slug used as the scene id prefix, lowercase letters, digits, - and _."),
@@ -131,7 +133,7 @@ export function createVerseServer(opts: ServerOptions): McpServer {
         resumable: z.boolean().optional().describe("Force resumable multi-part upload (default: automatic above 100 MB). Use on flaky connections."),
         wait_seconds: z.number().int().min(0).max(3000).default(600).describe("How long to wait for the build before returning the job id (0 = return right after upload)."),
       },
-      annotations: { title: "Upload a 3D file", readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: true },
+      annotations: { title: "Publish a 3D scene", readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: true },
     },
     guard(async (a: any, extra: any) => {
       const notify = progressNotifier(extra);
@@ -245,6 +247,81 @@ export function createVerseServer(opts: ServerOptions): McpServer {
         return ok(`Done. Open the scene: ${link}`, { scene: id, status: "done", link, visibility: s.visibility });
       }
       throw new ToolError("That job is unknown or its record expired after 2 hours; set VERSE_API_KEY to your account token to look up older scenes.");
+    }),
+  );
+
+  // ── create_upload_link / get_upload_link_status ───────────────────────
+  // For a file the user has but cannot hand over (a chat attachment, a file on their phone): a
+  // short-lived, single-use page where they drop it; the upload is owned by this account.
+  const doFetch = opts.fetch ?? fetch;
+  async function api(method: string, path: string, body?: unknown): Promise<any> {
+    const r = await doFetch(`${apiBase}${path}`, {
+      method,
+      headers: { Authorization: `Bearer ${opts.credentials.token}`, Accept: "application/json", ...(body !== undefined ? { "Content-Type": "application/json" } : {}), ...(opts.credentials.apiKey ? { "X-API-Key": opts.credentials.apiKey } : {}) },
+      ...(body !== undefined ? { body: JSON.stringify(body) } : {}),
+    });
+    const j: any = await r.json().catch(() => ({}));
+    if (r.status === 404) throw new ToolError("That upload link is unknown or belongs to another account; create a new one with create_upload_link.");
+    if (r.status === 401) throw new ToolError("The server rejected the Verse credential; check VERSE_API_KEY or sign in again.");
+    if (r.status === 429) throw new ToolError("Too many upload links in the last hour; try again later.");
+    if (!r.ok) throw new ToolError(j?.errorInfo?.message || j?.error || `Verse answered ${r.status}.`);
+    return j;
+  }
+  const dropTokenOf = (v: string): string => {
+    const s = String(v ?? "").trim();
+    const m = /\/drop\/([A-Za-z0-9_-]{22})(?:[/?#]|$)/.exec(s) ?? /^([A-Za-z0-9_-]{22})$/.exec(s);
+    if (!m) throw new ToolError("That does not look like a Verse upload link or its token.");
+    return m[1];
+  };
+
+  server.registerTool(
+    "create_upload_link",
+    {
+      title: "Create an upload link for a file the user has",
+      description:
+        "Use this when the user has a 3D file on their device or attached in the chat but no public URL (you cannot pass the file to this server). " +
+        "Returns a private link (https://verse.ctruh.com/drop/...) that works once and expires in 30 minutes; the user opens it in a browser, drops the file, and the upload lands in their Verse account. " +
+        "Give the user the link with the returned `instructions`, wait until they say it is uploaded, then call get_upload_link_status, and once it is done use get_embed_code or create_share_link. Needs a Verse account.",
+      inputSchema: {
+        name: z.string().regex(/^[a-z0-9_-]{1,48}$/).optional().describe("Optional slug for the scene id, lowercase letters, digits, - and _ (the user can change it on the page)."),
+        as: z.enum(["product", "interior", "building", "exterior"]).optional().describe("What the file is, if the user said: a 'product' (a single object) or a walkable 'interior'/'building'/'exterior'."),
+      },
+      annotations: { title: "Create upload link", readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: true },
+    },
+    guard(async (a: any) => {
+      needAccount("Creating an upload link");
+      const j = await api("POST", "/v1/upload-links", { ...(a.name ? { name: a.name } : {}), ...(a.as ? { as: a.as } : {}) });
+      const minutes = Math.max(1, Math.round((j.expiresInS ?? 1800) / 60));
+      return ok(`${j.url}\n${j.instructions} The link works once and expires in ${minutes} minutes.`, { link: j.url, instructions: j.instructions, expiresAt: j.expiresAt, singleUse: true });
+    }),
+  );
+
+  server.registerTool(
+    "get_upload_link_status",
+    {
+      title: "Check an upload link",
+      description:
+        "Check what happened to a link from create_upload_link. `state` is waiting (not opened or no file yet), uploading, building, done (with `scene` and `link`), failed (with the reason) or expired. " +
+        "Once it is done, use `scene` with get_embed_code, create_share_link or set_camera_path.",
+      inputSchema: { link: z.string().min(22).max(600).describe("The upload link from create_upload_link (or its token).") },
+      annotations: { title: "Upload link status", readOnlyHint: true, openWorldHint: true },
+    },
+    guard(async (a: any) => {
+      needAccount("Checking an upload link");
+      const s = await api("GET", `/v1/upload-links/${dropTokenOf(a.link)}`);
+      const text =
+        s.state === "done"
+          ? `Done. Open the scene: ${s.link}`
+          : s.state === "failed"
+            ? `The build failed: ${s.message ?? "unknown reason"}`
+            : s.state === "building"
+              ? `Uploaded; still building${typeof s.progress === "number" ? ` (${Math.round(s.progress * 100)}%)` : ""}.`
+              : s.state === "uploading"
+                ? "The file is uploading."
+                : s.state === "expired"
+                  ? "The link expired before a file was uploaded; create a new one."
+                  : "Waiting for the user to drop a file on the page.";
+      return ok(text, s);
     }),
   );
 

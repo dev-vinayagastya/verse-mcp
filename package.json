@@ -1,7 +1,7 @@
 {
   "name": "@ctruhtech/verse-mcp",
-  "version": "0.1.1",
-  "description": "MCP server for Verse: let Claude, ChatGPT, Cursor and other AI agents turn 3D files into shareable, embeddable Verse links. stdio and Streamable HTTP.",
+  "version": "0.1.2",
+  "description": "MCP server for Verse Engine: publish 3D scenes, walkthroughs and worlds as links that open in any browser, from Claude, ChatGPT, Cursor or any MCP client. Sign in at https://verse.ctruh.com/mcp, or run locally.",
   "homepage": "https://verse.ctruh.com/docs/#/mcp",
   "repository": {
     "type": "git",
@@ -35,11 +35,12 @@
   "engines": {
     "node": ">=20"
   },
-  "mcpName": "io.github.dev-vinayagastya/verse-mcp",
+  "mcpName": "com.ctruh.verse/verse",
   "scripts": {
     "build": "tsc -p tsconfig.json",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "test": "npm run build && node --test test/mock.test.mjs",
+    "test:integration": "npm run build && node --test test/integration.test.mjs",
     "prepublishOnly": "npm run typecheck && npm test"
   },
   "dependencies": {

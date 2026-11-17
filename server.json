@@ -3,8 +3,34 @@
   "name": "com.ctruh.verse/verse",
   "title": "Verse",
   "description": "Publish 3D scenes, walkthroughs and worlds as links that open in any browser, via Verse Engine.",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "websiteUrl": "https://verse.ctruh.com/mcp",
-  "repository": { "url": "https://github.com/dev-vinayagastya/verse-mcp", "source": "github" },
-  "remotes": [{ "type": "streamable-http", "url": "https://verse.ctruh.com/mcp" }]
+  "repository": {
+    "url": "https://github.com/dev-vinayagastya/verse-mcp",
+    "source": "github"
+  },
+  "remotes": [
+    {
+      "type": "streamable-http",
+      "url": "https://verse.ctruh.com/mcp"
+    }
+  ],
+  "packages": [
+    {
+      "registryType": "npm",
+      "identifier": "@ctruhtech/verse-mcp",
+      "version": "0.1.2",
+      "transport": {
+        "type": "stdio"
+      },
+      "environmentVariables": [
+        {
+          "name": "VERSE_API_KEY",
+          "description": "Your Verse API key (Account page, API keys) or account token.",
+          "isRequired": true,
+          "isSecret": true
+        }
+      ]
+    }
+  ]
 }

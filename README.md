@@ -1,27 +1,29 @@
 # @ctruhtech/verse-mcp
 
-An [MCP](https://modelcontextprotocol.io) server for [Verse](https://verse.ctruh.com). It lets AI assistants and agents (Claude, ChatGPT, Cursor, VS Code, your own) turn a 3D file into a shareable link that opens in any browser, then embed it, make it private, or give it a guided tour.
+An [MCP](https://modelcontextprotocol.io) server for [Verse Engine](https://verse.ctruh.com), which publishes 3D scenes, walkthroughs and worlds, from a single product to a whole city, as links that open in any browser on everyday devices. Connect it to Claude, ChatGPT, Cursor, VS Code or your own agent, and your assistant can publish a file or a public URL and hand you back a Verse link, embed code, a private share link or a guided camera tour.
 
 ```
-"Upload ~/Models/villa.glb to Verse and give me a link."
+"Put https://example.com/villa.glb on Verse and give me a link I can share."
 "Make that scene private and give me a link I can send to the client."
+"I have a big file on my phone. Give me a Verse upload link for it."
 "Give me the embed code for it, 1:1."
 ```
 
-Node 20 or newer. MIT licensed. Documentation: <https://verse.ctruh.com/docs/#/mcp>.
+MIT licensed. Documentation: <https://verse.ctruh.com/docs/#/mcp>. Install page with one-click buttons: <https://verse.ctruh.com/mcp>.
 
-## 60-second setup
+## Connect in one step: sign in with Verse
 
-1. Sign up free at <https://verse.ctruh.com/signin>, open your Account page and create a key under **API keys** (it is shown once).
-2. Add the server to your client with that key as `VERSE_API_KEY`:
+Add `https://verse.ctruh.com/mcp` to your assistant and sign in with your Verse account in the browser. No API key to copy, nothing to install.
 
-```sh
-claude mcp add verse --env VERSE_API_KEY=paste-your-key -- npx -y @ctruhtech/verse-mcp
-```
+- **Claude** (web and desktop): Settings → Connectors → Add custom connector → URL `https://verse.ctruh.com/mcp` → Add, then **Connect**.
+- **Claude Code:** `claude mcp add --transport http --scope user verse https://verse.ctruh.com/mcp`, then run `/mcp` and choose **Authenticate**.
+- **ChatGPT:** Settings → Connectors → Create (developer mode) → URL `https://verse.ctruh.com/mcp`, authentication **OAuth** → Create, then sign in.
+- **Cursor:** [Add to Cursor](https://verse.ctruh.com/mcp), or `{ "mcpServers": { "verse": { "url": "https://verse.ctruh.com/mcp" } } }` in `~/.cursor/mcp.json`, then **Connect** in Settings → MCP.
+- **VS Code:** [Install in VS Code](https://verse.ctruh.com/mcp), or `{ "servers": { "verse": { "type": "http", "url": "https://verse.ctruh.com/mcp" } } }` in `.vscode/mcp.json`, then **Start**.
 
-3. Ask: "Upload ~/Models/villa.glb to Verse and give me a link."
+The first time, a Verse page asks you to sign in (email or WhatsApp code) and press **Allow**. The app gets a key named "MCP · <app name>" on your [Account page](https://verse.ctruh.com/account); it lasts 30 days, renews while in use, and you can revoke it there.
 
-Other clients are below. Nothing is installed globally: `npx -y @ctruhtech/verse-mcp` fetches the package on first use.
+Prefer to run it locally, with an API key? See [Setup (stdio)](#setup-stdio) below: `npx -y @ctruhtech/verse-mcp`, Node 20 or newer.
 
 ## Tools
 
@@ -34,6 +36,8 @@ Other clients are below. Nothing is installed globally: `npx -y @ctruhtech/verse
 | `revoke_share_link` | Revoke a private share token (or list the active ones). |
 | `get_embed_code` | iframe, `<verse-viewer>` element and plain URL. |
 | `list_camera_paths`, `set_camera_path`, `reset_auto_camera_path` | Guided tours: read, author, or re-plan the automatic fly-through. |
+| `create_upload_link` | For a file the user has but cannot hand over (a chat attachment, a file on a phone): a 30-minute, single-use link where they drop it; it lands in their account. |
+| `get_upload_link_status` | What happened to an upload link: waiting, uploading, building, done (scene and link), failed or expired. |
 
 Every tool is a thin wrapper over the public REST API ([API reference](https://verse.ctruh.com/docs/#/api)) through [`@ctruhtech/verse-sdk`](https://www.npmjs.com/package/@ctruhtech/verse-sdk). There is no world-generation tool, because the API has no such endpoint. Share links do not expire on their own; the API has no expiry, so revoke a private link to end access. Errors come back as one plain sentence.
 
@@ -87,7 +91,9 @@ claude mcp add verse --env VERSE_API_KEY=paste-your-key -- npx -y @ctruhtech/ver
 
 ## Remote (Streamable HTTP)
 
-For clients that connect to a URL (ChatGPT connectors, Claude's custom connectors, hosted agents). Each caller sends their own key; nothing is stored between requests, and local file paths are disabled (pass public URLs). A request without a key is answered `401` with `WWW-Authenticate: Bearer realm="verse-mcp"` and a JSON-RPC error that says what to send.
+Sign-in setup is at the top of this page. API keys keep working: send `Authorization: Bearer <key>` (a key from the Account page, or your account token) and no sign-in happens.
+
+For clients that only take a fixed header (hosted agents, scripts):
 
 ```json
 {
@@ -100,7 +106,7 @@ For clients that connect to a URL (ChatGPT connectors, Claude's custom connector
 }
 ```
 
-Claude Code: `claude mcp add --transport http verse https://verse.ctruh.com/mcp --header "Authorization: Bearer $VERSE_API_KEY"`.
+Claude Code with a key instead of sign-in: `claude mcp add --transport http verse https://verse.ctruh.com/mcp --header "Authorization: Bearer $VERSE_API_KEY"`. Nothing is stored between requests, and local file paths are disabled on the remote server (pass public URLs). A request without a key or sign-in is answered `401` with `WWW-Authenticate: Bearer realm="verse-mcp", resource_metadata="…"` and a JSON-RPC error that says what to send.
 
 To host it yourself:
 

@@ -52,7 +52,7 @@ after(async () => {
 test("lists the documented tools with schemas and descriptions", async () => {
   const { tools } = await stdio.listTools();
   const names = tools.map((t) => t.name).sort();
-  assert.deepEqual(names, ["create_share_link", "get_embed_code", "get_scene_status", "list_camera_paths", "list_scenes", "reset_auto_camera_path", "revoke_share_link", "set_camera_path", "upload_scene"]);
+  assert.deepEqual(names, ["create_share_link", "create_upload_link", "get_embed_code", "get_scene_status", "get_upload_link_status", "list_camera_paths", "list_scenes", "reset_auto_camera_path", "revoke_share_link", "set_camera_path", "upload_scene"]);
   for (const t of tools) {
     assert.ok(t.description.length > 40, t.name);
     assert.equal(t.inputSchema.type, "object");
@@ -167,7 +167,7 @@ test("without an account token owner tools say so in one sentence", async () => 
 
 test("Streamable HTTP: same tools, caller's own key, no local files", async () => {
   const { tools } = await http.listTools();
-  assert.equal(tools.length, 9);
+  assert.equal(tools.length, 11);
   const ls = await http.callTool({ name: "list_scenes", arguments: {} });
   assert.ok(!ls.isError, text(ls));
   const local = await http.callTool({ name: "upload_scene", arguments: { source: glb } });

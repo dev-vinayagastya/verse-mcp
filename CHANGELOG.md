@@ -1,10 +1,14 @@
 # Changelog
 
+## 0.1.2
+
+- Two new tools: `create_upload_link` (a 30-minute, single-use page where someone drops a file the assistant cannot pass on, such as a big file on a phone) and `get_upload_link_status`.
+- Remote server: sign in with your Verse account (OAuth 2.1, no API key to copy) at `https://verse.ctruh.com/mcp`.
+- README and docs lead with sign-in; registry name `com.ctruh.verse/verse`.
+
 ## 0.1.1
 
-- Hosted (Streamable HTTP) servers hand the agent links on their public origin (`publicBaseUrl`, derived from `X-Forwarded-Proto` / `X-Forwarded-Host` by default), never the API loopback.
-- The hosted server's instructions no longer mention local file paths.
-- Messages start with a capital and read as one sentence; a vowel kind gets "an"; upload progress never steps back.
+- Publishing metadata and README links.
 
 ## 0.1.0
 
