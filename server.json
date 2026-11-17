@@ -1,19 +1,10 @@
 {
   "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
-  "name": "io.github.dev-vinayagastya/verse-mcp",
+  "name": "com.ctruh.verse/verse",
   "title": "Verse",
-  "description": "Turn 3D files into shareable, embeddable Verse links from any AI assistant.",
+  "description": "Publish 3D scenes, walkthroughs and worlds as links that open in any browser, via Verse Engine.",
   "version": "0.1.1",
+  "websiteUrl": "https://verse.ctruh.com/mcp",
   "repository": { "url": "https://github.com/dev-vinayagastya/verse-mcp", "source": "github" },
-  "packages": [
-    {
-      "registryType": "npm",
-      "identifier": "@ctruhtech/verse-mcp",
-      "version": "0.1.1",
-      "transport": { "type": "stdio" },
-      "environmentVariables": [
-        { "name": "VERSE_API_KEY", "description": "Your Verse API key (Account page, API keys card) or account token. Sent as Authorization: Bearer.", "isRequired": true, "isSecret": true }
-      ]
-    }
-  ]
+  "remotes": [{ "type": "streamable-http", "url": "https://verse.ctruh.com/mcp" }]
 }
