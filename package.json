@@ -16,7 +16,7 @@
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "bin": {
-    "verse-mcp": "./dist/cli.js"
+    "verse-mcp": "dist/cli.js"
   },
   "exports": {
     ".": {
@@ -37,7 +37,7 @@
   },
   "mcpName": "com.ctruh.verse/verse",
   "scripts": {
-    "build": "tsc -p tsconfig.json",
+    "build": "tsc -p tsconfig.json && chmod +x dist/cli.js",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "test": "npm run build && node --test test/mock.test.mjs",
     "test:integration": "npm run build && node --test test/integration.test.mjs",
