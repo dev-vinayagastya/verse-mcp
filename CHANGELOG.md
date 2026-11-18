@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.1.3
+
+- Every tool now says when to use it, when to use a sibling instead, what its parameters mean beyond their types, and its side effects, auth and limits.
+- Output schemas on all 11 tools, so clients get typed results.
+- Every parameter described, including camera-path keyframe fields.
+
 ## 0.1.2
 
 - Two new tools: `create_upload_link` (a 30-minute, single-use page where someone drops a file the assistant cannot pass on, such as a big file on a phone) and `get_upload_link_status`.
