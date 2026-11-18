@@ -1,5 +1,7 @@
 # @ctruhtech/verse-mcp
 
+[![Verse MCP server](https://mcprush.com/badge/dev-vinayagastya-verse-mcp/card.svg)](https://mcprush.com/to/dev-vinayagastya-verse-mcp?ref=badge)
+
 An [MCP](https://modelcontextprotocol.io) server for [Verse Engine](https://verse.ctruh.com), which publishes 3D scenes, walkthroughs and worlds, from a single product to a whole city, as links that open in any browser on everyday devices. Connect it to Claude, ChatGPT, Cursor, VS Code or your own agent, and your assistant can publish a file or a public URL and hand you back a Verse link, embed code, a private share link or a guided camera tour.
 
 ```
