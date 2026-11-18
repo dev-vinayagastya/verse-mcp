@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.1.5
+
+- Tool descriptions state real limits (file size by plan, hourly upload and upload-link allowances, tours per scene, keys per tour) and add parameter guidance the schemas cannot carry.
+
 ## 0.1.4
 
 - New tool `delete_camera_path`: remove a guided tour from a scene (owner only; `default` deletes the tour that plays by default).

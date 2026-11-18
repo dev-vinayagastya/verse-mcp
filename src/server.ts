@@ -116,11 +116,12 @@ export function createVerseServer(opts: ServerOptions): McpServer {
     {
       title: "Publish a 3D scene and get a Verse link",
       description:
-        "Publish a 3D file as a Verse scene and return a link that opens in any browser on phones and desktops, from a single product to a walkable building or a whole city. " +
-        "Use when you have a public http(s) URL to the file, or (local stdio server only) a path on this machine. If the user has the file but no public URL, use create_upload_link instead; to re-share an existing scene use create_share_link. " +
-        "Parameters: `source` is the URL or path (Dropbox needs dl=1, Google Drive needs 'anyone with the link', S3/R2/GCS need a presigned URL); `name` sets the scene id prefix; `kind` only for ambiguous extensions (a Gaussian-splat .ply is 'splat'); `as` and `path` override the automatic product-or-walkthrough choice; `visibility` is applied after the build; `wait_seconds` 0 returns as soon as the upload is accepted. " +
-        "Accepts GLB, glTF, FBX, OBJ, IFC, USD/USDZ, PLY, SPLAT and LAS/LAZ/E57 point clouds; files over 100 MB upload in resumable parts and progress is sent as notifications. " +
-        "Creates a new scene in the user's workspace each call (not idempotent); scenes are unlisted unless `visibility` says otherwise. Needs a signed-in Verse account (connector sign-in, or VERSE_API_KEY for the local server).",
+        "Publish a 3D file as a Verse scene and return a link that opens in any browser, from a single product to a walkable building or a whole city. " +
+        "Use it when you have a public http(s) URL, or a path on this machine (local server only). If the user has the file but no public URL, use create_upload_link; to re-share an existing scene, use create_share_link. " +
+        "Parameters: `source` links must be directly downloadable (Dropbox dl=1, Google Drive 'anyone with the link', S3/R2/GCS presigned). Leave `kind`, `as` and `path` unset unless the guess would be wrong, e.g. a Gaussian-splat .ply is `kind` 'splat'. `visibility` applies once the build finishes. `wait_seconds` 0 returns as soon as the upload is accepted. " +
+        "Formats: GLB, glTF, FBX, OBJ, IFC, USD/USDZ, PLY, SPLAT, LAS/LAZ/E57. " +
+        "Limits: up to 1 GB per file on the free plan and 20 GB on paid plans; 20 uploads an hour per account, and files over 500 MB count against a smaller hourly allowance (2 on free). Files over 100 MB go up in resumable parts with progress notifications. A product usually builds in seconds; a large walkable scene can take many minutes, in which case status comes back 'compiling' and you poll get_scene_status. " +
+        "Every call creates a new scene in the user's workspace, unlisted unless `visibility` says otherwise. Requires sign-in (connector sign-in, or VERSE_API_KEY for the local server).",
       inputSchema: {
         source: z.string().min(1).max(4096).describe("Local file path (e.g. ~/Models/villa.glb) or a public http(s) URL to a 3D file."),
         name: z.string().regex(/^[a-z0-9_-]{1,48}$/).optional().describe("Optional slug used as the scene id prefix, lowercase letters, digits, - and _."),
@@ -216,10 +217,10 @@ export function createVerseServer(opts: ServerOptions): McpServer {
     {
       title: "Check a scene's build status",
       description:
-        "Check whether a scene from upload_scene or an upload link has finished building, and get its link once it has. " +
-        "Use after upload_scene returned status 'compiling', or when the user asks if a scene is ready; poll every 10 to 30 seconds. For upload links use get_upload_link_status; to list all scenes use list_scenes. " +
-        "Parameters: `scene` accepts the scene id, the job id from upload_scene, or any Verse link to the scene. " +
-        "Read-only. Build records are kept for 2 hours; older scenes are looked up in the account, which needs a signed-in Verse account (connector sign-in, or VERSE_API_KEY for the local server).",
+        "Check whether a scene has finished building and get its link once it has. " +
+        "Use it after upload_scene returned 'compiling', or when the user asks if a scene is ready; poll every 10 to 30 seconds. For upload links use get_upload_link_status; to browse all scenes use list_scenes. " +
+        "Parameter: `scene` can be the job id from upload_scene, the scene id, or a Verse link the user pasted. Job ids resolve for 2 hours after upload; after that pass the scene id or link, which is looked up in the signed-in account. " +
+        "Read-only and free to call repeatedly. A failed build returns a plain message saying what to fix (for example an unsupported file inside a zip). Older scenes need sign-in; a build started in this session does not.",
       inputSchema: { scene: sceneArg },
       outputSchema: { scene: z.string().describe("Scene id."), status: z.string().describe("'compiling', 'done' or 'error'."), link: z.string().nullable().optional().describe("Link that opens the scene in any browser."), arUrl: z.string().nullable().optional().describe("USDZ link for iPhone AR, products only."), visibility: z.string().nullable().optional().describe("public, unlisted or private."), stage: z.string().nullable().optional().describe("Current build stage while compiling."), progress: z.number().nullable().optional().describe("Build progress 0..1 while compiling."), eta: z.string().nullable().optional().describe("Estimated time left while compiling."), error: z.string().nullable().optional().describe("Error code when status is 'error'."), message: z.string().nullable().optional().describe("Plain explanation of the failure and how to fix it.") },
       annotations: { title: "Scene build status", readOnlyHint: true, openWorldHint: true },
@@ -282,10 +283,11 @@ export function createVerseServer(opts: ServerOptions): McpServer {
     {
       title: "Create an upload link for a file the user has",
       description:
-        "Create a one-time web page where the user drops a 3D file that you cannot pass to this server, such as a chat attachment or a file on their phone. " +
-        "Use only when the file has no public URL and you cannot read the user's disk; if there is a public URL use upload_scene, which is faster. " +
-        "Parameters: optional `name` (scene id prefix the user can change on the page) and `as` ('product' for a single object, 'interior', 'building' or 'exterior' for walkable scenes) if the user said what the file is. " +
-        "The link works for one upload and expires after 30 minutes; the scene lands in the user's own account. Give the user the link and instructions, wait until they say it is uploaded, then call get_upload_link_status. Rate limited per account per hour. Needs a signed-in Verse account (connector sign-in, or VERSE_API_KEY for the local server).",
+        "Create a one-time web page where the user drops a 3D file you cannot pass to this server, such as a chat attachment or a file on their phone. " +
+        "Use it only when the file has no public URL and you cannot read the user's disk; with a public URL, upload_scene is faster. " +
+        "Parameters: set `as` if the user said what the file is ('product' for one object; 'interior', 'building' or 'exterior' for walkable scenes) so Verse skips guessing; `name` pre-fills the scene id, which the user can still change on the page. " +
+        "Give the user the link and the returned instructions, wait until they say it is uploaded, then call get_upload_link_status. " +
+        "Each link accepts one file, expires after 30 minutes, and uploads into the user's own account with their plan's file-size cap (1 GB free, up to 20 GB paid). Up to 60 links an hour per account. Requires sign-in (connector sign-in, or VERSE_API_KEY for the local server).",
       inputSchema: {
         name: z.string().regex(/^[a-z0-9_-]{1,48}$/).optional().describe("Optional slug for the scene id, lowercase letters, digits, - and _ (the user can change it on the page)."),
         as: z.enum(["product", "interior", "building", "exterior"]).optional().describe("What the file is, if the user said: a 'product' (a single object) or a walkable 'interior'/'building'/'exterior'."),
@@ -307,9 +309,9 @@ export function createVerseServer(opts: ServerOptions): McpServer {
       title: "Check an upload link",
       description:
         "Check what happened to a link from create_upload_link. " +
-        "Use after the user says they dropped the file, or to see whether they have yet; for scenes from upload_scene use get_scene_status instead. " +
-        "Parameters: `link` is the full upload link or its 22-character token. " +
-        "Read-only. Once done, pass `scene` to get_embed_code, create_share_link or set_camera_path. Needs a signed-in Verse account (connector sign-in, or VERSE_API_KEY for the local server).",
+        "Use it after the user says they dropped the file, or to see whether they have; for scenes from upload_scene use get_scene_status. " +
+        "Parameter: `link` takes the full link or just the 22-character token after /drop/; a link created by another account reads as unknown. " +
+        "Read-only and free to repeat; poll every 10 to 30 seconds while the state is uploading or building. When done, pass the returned `scene` to get_embed_code, create_share_link or set_camera_path; if expired, create a new link. Requires sign-in (connector sign-in, or VERSE_API_KEY for the local server).",
       inputSchema: { link: z.string().min(22).max(600).describe("The upload link from create_upload_link (or its token).") },
       outputSchema: { state: z.string().describe("waiting, uploading, building, done, failed or expired."), scene: z.string().nullable().optional().describe("Scene id once done."), link: z.string().nullable().optional().describe("Link that opens the scene in any browser."), progress: z.number().nullable().optional().describe("Build progress 0..1 while building."), message: z.string().nullable().optional().describe("Why it failed, when state is failed.") },
       annotations: { title: "Upload link status", readOnlyHint: true, openWorldHint: true },
@@ -340,9 +342,9 @@ export function createVerseServer(opts: ServerOptions): McpServer {
       title: "List your scenes",
       description:
         "List the scenes in the user's Verse workspace, newest first. " +
-        "Use to find a scene id when the user refers to a scene by name or date (\"my villa from yesterday\"), or to show what they have published; for one known scene's build state use get_scene_status. " +
-        "Parameters: `limit` caps how many scenes come back (1 to 100, default 20); the total count is always returned. " +
-        "Read-only. Needs a signed-in Verse account (connector sign-in, or VERSE_API_KEY for the local server).",
+        "Use it to find a scene id when the user refers to a scene by name or date (\"my villa from yesterday\"), or to show what they have published; for one known scene use get_scene_status. " +
+        "Parameter: `limit` (1 to 100, default 20); use 5 to 10 when looking for something recent. The response always carries `total`, so you can tell whether older scenes were left out. " +
+        "Read-only. Includes view counts and open review comments, useful for answering \"which scene gets the most views\". Requires sign-in (connector sign-in, or VERSE_API_KEY for the local server).",
       inputSchema: { limit: z.number().int().min(1).max(100).default(20).describe("Maximum number of scenes to return.") },
       outputSchema: { total: z.number().describe("Scenes in the account."), scenes: z.array(z.object({ id: z.string(), link: z.string(), visibility: z.string().nullable().optional(), kind: z.string().nullable().optional(), sizeMB: z.number().nullable().optional(), created: z.string().nullable().optional(), opens: z.number().nullable().optional(), openReviews: z.number().nullable().optional() })).describe("Newest first: id, link, visibility, kind, size in MB, creation time, view count and open review comments.") },
       annotations: { title: "List scenes", readOnlyHint: true, openWorldHint: true },
@@ -372,9 +374,9 @@ export function createVerseServer(opts: ServerOptions): McpServer {
       title: "Create a share link (set visibility)",
       description:
         "Get a link to a scene the user owns, optionally changing who can open it. " +
-        "Use when the user wants to send or post a scene, or to make it public, unlisted or private; to stop a private link working use revoke_share_link; for website code use get_embed_code. " +
-        "Parameters: `visibility` 'unlisted' (anyone with the link, the default for new scenes), 'public' (also listed) or 'private' (opens only with a secret token); omit it to keep the current setting. `new_token` mints a revocable token even for non-private scenes. `autoplay_tour` makes the link start the default camera tour. " +
-        "Changes the scene's visibility when `visibility` is given, and each token call creates a new token. Links do not expire on their own. Needs a signed-in Verse account (connector sign-in, or VERSE_API_KEY for the local server).",
+        "Use it when the user wants to send or post a scene, or change it to public, unlisted or private; to cut off a link use revoke_share_link; for website code use get_embed_code. " +
+        "Parameters: `visibility` 'unlisted' (anyone with the link; the default for new scenes), 'public' (also listed) or 'private' (opens only with a secret token); omit it to keep the current setting. `new_token` gives a revocable link without making the scene private. `autoplay_tour` starts the default camera tour on open. " +
+        "Side effects: changes the scene's visibility when `visibility` is given, and every token call creates another token. The token is shown only once; keep `shareId` to revoke it. Links never expire on their own. Requires sign-in (connector sign-in, or VERSE_API_KEY for the local server).",
       inputSchema: {
         scene: sceneArg,
         visibility: z.enum(["public", "unlisted", "private"]).optional().describe("Set the scene's visibility first. Omit to keep it as is."),
@@ -414,9 +416,9 @@ export function createVerseServer(opts: ServerOptions): McpServer {
       title: "Revoke a private share link",
       description:
         "Revoke one private share token so the link containing it stops opening the scene, or list the active tokens. " +
-        "Use when the user wants to cut off a link they sent; call with only `scene` first to see the active `shareId`s, then again with `share_id`. To make a whole scene public or unlisted again use create_share_link. " +
-        "Parameters: `scene` (id or link) and optional `share_id` (from create_share_link or the list call). " +
-        "Revoking is permanent and immediate for that token; other tokens and the scene itself are untouched. Needs a signed-in Verse account (connector sign-in, or VERSE_API_KEY for the local server).",
+        "Use it when the user wants to cut off a link they sent: call with only `scene` to list active `shareId`s, then again with `share_id`. To make the whole scene public or unlisted again, use create_share_link. " +
+        "Parameters: `scene` (id or link) and optional `share_id` from create_share_link or the list call; the list shows each token's last characters so the user can tell links apart. " +
+        "Takes effect immediately and cannot be undone; that link stops opening the scene for everyone who has it. Other tokens and the scene are untouched. Requires sign-in (connector sign-in, or VERSE_API_KEY for the local server).",
       inputSchema: { scene: sceneArg, share_id: z.string().min(1).max(64).optional().describe("The shareId to revoke. Omit to list active ones.") },
       outputSchema: { scene: z.string().describe("Scene id."), shares: z.array(z.any()).nullable().optional().describe("Active share tokens (id and last characters), when listing."), revoked: z.string().nullable().optional().describe("The share id that was revoked.") },
       annotations: { title: "Revoke share link", readOnlyHint: false, destructiveHint: true, idempotentHint: true, openWorldHint: true },
@@ -440,9 +442,9 @@ export function createVerseServer(opts: ServerOptions): McpServer {
       title: "Get embed code for a scene",
       description:
         "Get copy-paste code to show a scene inside a web page. " +
-        "Use when the user wants the scene on their website, store or CMS; for a link to send in a message use create_share_link instead. " +
-        "Parameters: `aspect` sets the frame shape (default 16:9, 'fill' fills the parent); `load` 'lazy' loads when scrolled into view, 'tap' waits for a tap, 'eager' loads at once; `background` is a hex colour without #, 'transparent' or 'studio:warm'; `title` is the iframe's accessible title; `share_token` is required for a private scene (from the link create_share_link returned). " +
-        "Read-only; makes no change to the scene. Works without an account for public and unlisted scenes.",
+        "Use it when the user wants the scene on their website, store or CMS; for a link to send in a message, use create_share_link. " +
+        "Parameters: `aspect` sets the frame shape ('fill' takes the parent's size, for full-bleed heroes); `load` 'lazy' saves bandwidth below the fold, 'tap' suits pages with many scenes, 'eager' suits a single hero; `background` is hex without #, 'transparent' to sit on the page colour, or 'studio:warm'; `share_token` is required for a private scene and is the token inside the link create_share_link returned. " +
+        "Read-only and makes no change to the scene; works without sign-in for public and unlisted scenes.",
       inputSchema: {
         scene: sceneArg,
         share_token: z.string().regex(/^[0-9a-f]{32}$/).optional().describe("Share token of a private scene."),
@@ -465,7 +467,7 @@ export function createVerseServer(opts: ServerOptions): McpServer {
   // ── camera paths ──────────────────────────────────────────────────────
   const key = z.object({
     p: z.tuple([z.number(), z.number(), z.number()]).describe("Eye position [x,y,z] in metres (y up)."),
-    f: z.tuple([z.number(), z.number(), z.number()]).describe("Forward direction [x,y,z]; need not be normalised. Ignored when `look` is given."),
+    f: z.tuple([z.number(), z.number(), z.number()]).describe("Forward direction [x,y,z], required and non-zero; need not be normalised. When `look` is set, the camera aims at that point instead."),
     fov: z.number().min(5).max(150).optional().describe("Vertical field of view in degrees at this key (default 60)."),
     dur: z.number().positive().max(600).optional().describe("Seconds to the next key (auto if omitted)."),
     hold: z.number().min(0).max(600).optional().describe("Seconds to dwell here."),
@@ -480,9 +482,9 @@ export function createVerseServer(opts: ServerOptions): McpServer {
       title: "List a scene's camera paths",
       description:
         "List the guided camera tours of a scene and which one plays by default. " +
-        "Use before editing tours, or to give the user a tour link; every scene gets an automatic default tour after it builds. To create a tour use set_camera_path, to regenerate the automatic one use reset_auto_camera_path, and to remove one use delete_camera_path. " +
-        "Parameters: `scene` is the scene id, job id or any Verse link to the scene. " +
-        "Read-only. Works without an account for public and unlisted scenes.",
+        "Use it before editing tours, or to give the user a tour link; every scene gets an automatic default tour after it builds. To create a tour use set_camera_path, to regenerate the automatic one use reset_auto_camera_path, and to remove one use delete_camera_path. " +
+        "Parameter: `scene` is the scene id, job id or a link the user pasted; the returned path ids are what set_camera_path, delete_camera_path and tour links use. " +
+        "Read-only. Works without sign-in for public and unlisted scenes; private scenes need the owner signed in.",
       inputSchema: { scene: sceneArg },
       outputSchema: { scene: z.string().describe("Scene id."), default: z.string().nullable().describe("Id of the tour links play by default."), paths: z.array(z.any()).describe("Tours with id, name, mode, key count, chapter labels and auto flag."), tourLink: z.string().describe("Link that opens the scene playing the default tour.") },
       annotations: { title: "List camera paths", readOnlyHint: true, openWorldHint: true },
@@ -503,9 +505,9 @@ export function createVerseServer(opts: ServerOptions): McpServer {
       title: "Create a camera path (guided tour)",
       description:
         "Create a custom guided camera tour, a scripted walk or fly-through that share links can play. " +
-        "Use when the user wants a specific route, order of rooms or framing; if they only want a good tour, use reset_auto_camera_path, which plans one automatically. " +
-        "Parameters: `keys` are 2 to 256 keyframes in scene metres with y up: `p` eye position, `f` forward direction (or `look` a point to face), optional `fov` degrees, `dur` seconds to the next key, `hold` seconds to pause, `ease` and a chapter `label`. `mode` 'walk' keeps eye height and avoids walls, 'fly' moves freely. `speed` (metres per second) times keys without `dur`. `make_default` makes this the tour links play. " +
-        "Adds a new tour each call (existing tours are kept); the first tour on a scene becomes the default. Owner only. Needs a signed-in Verse account (connector sign-in, or VERSE_API_KEY for the local server).",
+        "Use it when the user wants a specific route, order of rooms or framing; for a good tour without choosing a route, use reset_auto_camera_path. " +
+        "Parameters: keyframes use scene metres with y up. Every key needs a non-zero forward vector `f`; add `look` to keep a target point centred, which takes over aiming at that key. Keys without `dur` are timed from `speed`; `hold` pauses at a key, which suits a room reveal. In 'walk' mode the camera keeps eye height and steers around walls, so put keys in open floor space; 'fly' moves freely and suits exteriors. " +
+        "Limits: 2 to 256 keys per tour and up to 24 tours per scene. Each call adds a new tour and keeps the others; the first tour on a scene becomes the default unless another is. Owner only. Requires sign-in (connector sign-in, or VERSE_API_KEY for the local server).",
       inputSchema: {
         scene: sceneArg,
         name: z.string().min(1).max(80).default("Walkthrough").describe("Tour name shown to viewers, e.g. 'Ground floor walkthrough'."),
@@ -536,9 +538,9 @@ export function createVerseServer(opts: ServerOptions): McpServer {
       title: "Plan the automatic tour",
       description:
         "Plan a fresh automatic tour for a scene and make it the default: an eye-height walkthrough for interiors, a drone fly-through for exteriors or a 360-degree orbit for products. " +
-        "Use when the user wants a tour without choosing a route, or after the scene changed; for a hand-picked route use set_camera_path. " +
-        "Parameters: `scene` only; the tour type is chosen from the scene's content. " +
-        "Replaces the scene's default tour with the new plan; custom tours from set_camera_path are kept. Safe to repeat. Owner only. Needs a signed-in Verse account (connector sign-in, or VERSE_API_KEY for the local server).",
+        "Use it when the user wants a tour without choosing a route, or after the scene changed; for a hand-picked route use set_camera_path. " +
+        "Parameter: `scene` only; the scene must have finished building (check get_scene_status), and the tour type comes from its content, not from you. " +
+        "Replaces the scene's default with the new plan; custom tours from set_camera_path are kept. Safe to repeat. Owner only. Requires sign-in (connector sign-in, or VERSE_API_KEY for the local server).",
       inputSchema: { scene: sceneArg },
       outputSchema: { scene: z.string().describe("Scene id."), pathId: z.string().describe("Id of the planned tour."), kind: z.string().nullable().describe("walkthrough, fly-through or orbit."), tourLink: z.string().describe("Link that opens the scene playing it.") },
       annotations: { title: "Plan automatic tour", readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: true },
@@ -560,10 +562,9 @@ export function createVerseServer(opts: ServerOptions): McpServer {
       title: "Delete a camera path",
       description:
         "Delete one guided camera tour from a scene. " +
-        "Use when the user wants to remove a tour they no longer want, after list_camera_paths has shown its id; to replace the automatic tour with a fresh plan use reset_auto_camera_path instead, and to add a tour use set_camera_path. " +
-        "Parameters: `scene` (id or any Verse link to it) and `path_id` (from list_camera_paths or set_camera_path; 'default' deletes whichever tour plays by default). " +
-        "Permanent: the tour cannot be restored, though reset_auto_camera_path can plan a new automatic one. If the deleted tour was the default, links play no tour until another is made default. Other tours and the scene itself are untouched. Owner only. " +
-        "Needs a signed-in Verse account (connector sign-in, or VERSE_API_KEY for the local server).",
+        "Use it when the user wants to remove a tour they no longer want; to replace the automatic tour with a fresh plan use reset_auto_camera_path, and to add a tour use set_camera_path. " +
+        "Parameters: `scene` (id or link) and `path_id` from list_camera_paths or set_camera_path; 'default' deletes whichever tour currently plays by default. " +
+        "Permanent: the tour cannot be restored, though reset_auto_camera_path can plan a new automatic one. If it was the default, links play no tour until another is made default. Other tours and the scene are untouched. Owner only. Requires sign-in (connector sign-in, or VERSE_API_KEY for the local server).",
       inputSchema: {
         scene: sceneArg,
         path_id: z.string().min(1).max(40).describe("Id of the tour to delete, as listed by list_camera_paths, or 'default' for the tour that currently plays by default."),
