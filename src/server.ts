@@ -480,7 +480,7 @@ export function createVerseServer(opts: ServerOptions): McpServer {
       title: "List a scene's camera paths",
       description:
         "List the guided camera tours of a scene and which one plays by default. " +
-        "Use before editing tours, or to give the user a tour link; every scene gets an automatic default tour after it builds. To create a tour use set_camera_path; to regenerate the automatic one use reset_auto_camera_path. " +
+        "Use before editing tours, or to give the user a tour link; every scene gets an automatic default tour after it builds. To create a tour use set_camera_path, to regenerate the automatic one use reset_auto_camera_path, and to remove one use delete_camera_path. " +
         "Parameters: `scene` is the scene id, job id or any Verse link to the scene. " +
         "Read-only. Works without an account for public and unlisted scenes.",
       inputSchema: { scene: sceneArg },
@@ -551,6 +551,31 @@ export function createVerseServer(opts: ServerOptions): McpServer {
       const tourLink = `${base}${base.includes("?") ? "&" : "?"}autoplay=path`;
       const article = /^[aeiou]/i.test(String(r.kind)) ? "an" : "a";
       return ok(`Planned ${article} ${r.kind} tour "${r.name}" (${r.keys.length} keys). Tour link: ${tourLink}`, { scene: id, pathId: r.id, kind: r.kind, tourLink });
+    }),
+  );
+
+  server.registerTool(
+    "delete_camera_path",
+    {
+      title: "Delete a camera path",
+      description:
+        "Delete one guided camera tour from a scene. " +
+        "Use when the user wants to remove a tour they no longer want, after list_camera_paths has shown its id; to replace the automatic tour with a fresh plan use reset_auto_camera_path instead, and to add a tour use set_camera_path. " +
+        "Parameters: `scene` (id or any Verse link to it) and `path_id` (from list_camera_paths or set_camera_path; 'default' deletes whichever tour plays by default). " +
+        "Permanent: the tour cannot be restored, though reset_auto_camera_path can plan a new automatic one. If the deleted tour was the default, links play no tour until another is made default. Other tours and the scene itself are untouched. Owner only. " +
+        "Needs a signed-in Verse account (connector sign-in, or VERSE_API_KEY for the local server).",
+      inputSchema: {
+        scene: sceneArg,
+        path_id: z.string().min(1).max(40).describe("Id of the tour to delete, as listed by list_camera_paths, or 'default' for the tour that currently plays by default."),
+      },
+      outputSchema: { scene: z.string().describe("Scene id."), deleted: z.string().describe("Id of the tour that was deleted."), default: z.string().nullable().describe("Id of the tour that now plays by default, or null if none.") },
+      annotations: { title: "Delete camera path", readOnlyHint: false, destructiveHint: true, idempotentHint: false, openWorldHint: true },
+    },
+    guard(async (a: any) => {
+      needAccount("Deleting a camera path");
+      const id = sceneIdOf(a.scene);
+      const r = await client.request<{ deleted: string; default: string | null }>(`/v1/scenes/${encodeURIComponent(id)}/paths/${encodeURIComponent(a.path_id)}`, { method: "DELETE", retries: 0 });
+      return ok(`Deleted tour ${r.deleted}.${r.default ? ` The default tour is now ${r.default}.` : " No tour plays by default now; use reset_auto_camera_path or set_camera_path with make_default."}`, { scene: id, deleted: r.deleted, default: r.default ?? null });
     }),
   );
 

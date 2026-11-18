@@ -37,7 +37,7 @@ Prefer to run it locally, with an API key? See [Setup (stdio)](#setup-stdio) bel
 | `create_share_link` | Set visibility (public / unlisted / private); private scenes get a revocable share-token link. Optional autoplay of the camera path. |
 | `revoke_share_link` | Revoke a private share token (or list the active ones). |
 | `get_embed_code` | iframe, `<verse-viewer>` element and plain URL. |
-| `list_camera_paths`, `set_camera_path`, `reset_auto_camera_path` | Guided tours: read, author, or re-plan the automatic fly-through. |
+| `list_camera_paths`, `set_camera_path`, `reset_auto_camera_path`, `delete_camera_path` | Guided tours: read, author, re-plan the automatic fly-through, or delete one. |
 | `create_upload_link` | For a file the user has but cannot hand over (a chat attachment, a file on a phone): a 30-minute, single-use link where they drop it; it lands in their account. |
 | `get_upload_link_status` | What happened to an upload link: waiting, uploading, building, done (scene and link), failed or expired. |
 

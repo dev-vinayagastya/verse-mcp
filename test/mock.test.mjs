@@ -52,7 +52,7 @@ after(async () => {
 test("lists the documented tools with schemas and descriptions", async () => {
   const { tools } = await stdio.listTools();
   const names = tools.map((t) => t.name).sort();
-  assert.deepEqual(names, ["create_share_link", "create_upload_link", "get_embed_code", "get_scene_status", "get_upload_link_status", "list_camera_paths", "list_scenes", "reset_auto_camera_path", "revoke_share_link", "set_camera_path", "upload_scene"]);
+  assert.deepEqual(names, ["create_share_link", "create_upload_link", "delete_camera_path", "get_embed_code", "get_scene_status", "get_upload_link_status", "list_camera_paths", "list_scenes", "reset_auto_camera_path", "revoke_share_link", "set_camera_path", "upload_scene"]);
   for (const t of tools) {
     assert.ok(t.description.length > 40, t.name);
     assert.equal(t.inputSchema.type, "object");
@@ -138,6 +138,13 @@ test("list_scenes, create_share_link (private mints token), revoke, embed, paths
   assert.match(sp.structuredContent.tourLink, /autoplay=path&path=p1abc/);
   const lp = await stdio.callTool({ name: "list_camera_paths", arguments: { scene: id } });
   assert.equal(lp.structuredContent.paths.length, 1);
+  const del = await stdio.callTool({ name: "delete_camera_path", arguments: { scene: id, path_id: lp.structuredContent.paths[0].id } });
+  assert.ok(!del.isError, text(del));
+  assert.equal(del.structuredContent.deleted, lp.structuredContent.paths[0].id);
+  const lp2 = await stdio.callTool({ name: "list_camera_paths", arguments: { scene: id } });
+  assert.equal(lp2.structuredContent.paths.length, 0);
+  const del2 = await stdio.callTool({ name: "delete_camera_path", arguments: { scene: id, path_id: "nope" } });
+  assert.ok(del2.isError, "deleting an unknown tour is a plain error");
   const au = await stdio.callTool({ name: "reset_auto_camera_path", arguments: { scene: id } });
   assert.equal(au.structuredContent.kind, "drone");
   const bad = await stdio.callTool({ name: "set_camera_path", arguments: { scene: id, keys: [{ p: [0, 0, 0], f: [0, 0, 1] }] } }).catch((e) => e);
@@ -167,7 +174,7 @@ test("without an account token owner tools say so in one sentence", async () => 
 
 test("Streamable HTTP: same tools, caller's own key, no local files", async () => {
   const { tools } = await http.listTools();
-  assert.equal(tools.length, 11);
+  assert.equal(tools.length, 12);
   const ls = await http.callTool({ name: "list_scenes", arguments: {} });
   assert.ok(!ls.isError, text(ls));
   const local = await http.callTool({ name: "upload_scene", arguments: { source: glb } });

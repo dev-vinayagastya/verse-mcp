@@ -1,6 +1,6 @@
 {
   "name": "@ctruhtech/verse-mcp",
-  "version": "0.1.3",
+  "version": "0.1.4",
   "description": "MCP server for Verse Engine: publish 3D scenes, walkthroughs and worlds as links that open in any browser, from Claude, ChatGPT, Cursor or any MCP client. Sign in at https://verse.ctruh.com/mcp, or run locally.",
   "homepage": "https://verse.ctruh.com/docs/#/mcp",
   "repository": {

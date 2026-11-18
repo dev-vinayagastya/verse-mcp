@@ -83,6 +83,14 @@ export async function startMockVerse() {
         }
         if (req.method === "PUT") return json(res, 200, { ok: true });
       }
+      if (req.method === "DELETE" && (m = /^\/v1\/scenes\/([\w-]+)\/paths\/([\w-]+)$/.exec(p))) {
+        const list = paths.get(m[1]) ?? [];
+        const pid = m[2] === "default" ? list[0]?.id : m[2];
+        if (!list.some((x) => x.id === pid)) return json(res, 404, { error: "no such path" });
+        const rest = list.filter((x) => x.id !== pid);
+        paths.set(m[1], rest);
+        return json(res, 200, { scene: m[1], deleted: pid, default: rest[0]?.id ?? null });
+      }
       if (req.method === "POST" && (m = /^\/v1\/scenes\/([\w-]+)\/paths\/auto$/.exec(p))) return json(res, 200, { scene: m[1], default: true, id: "pauto", name: "Fly-through", mode: "fly", kind: "drone", auto: true, keys: [1, 2, 3] });
     }
     json(res, 404, { error: "not found" });

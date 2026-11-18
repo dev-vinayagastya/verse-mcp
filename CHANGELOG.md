@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.1.4
+
+- New tool `delete_camera_path`: remove a guided tour from a scene (owner only; `default` deletes the tour that plays by default).
+
 ## 0.1.3
 
 - Every tool now says when to use it, when to use a sibling instead, what its parameters mean beyond their types, and its side effects, auth and limits.
